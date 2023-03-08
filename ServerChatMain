@@ -1,0 +1,198 @@
+package com.ithmm.chat;
+
+import java.awt.BorderLayout;
+import java.awt.event.ActionEvent;
+import java.awt.event.ActionListener;
+import java.awt.event.KeyEvent;
+import java.awt.event.KeyListener;
+import java.io.BufferedReader;
+import java.io.BufferedWriter;
+import java.io.IOException;
+import java.io.InputStreamReader;
+import java.io.OutputStreamWriter;
+import java.net.ServerSocket;
+import java.net.Socket;
+
+import javax.swing.JButton;
+import javax.swing.JFrame;
+import javax.swing.JPanel;
+import javax.swing.JScrollPane;
+import javax.swing.JTextArea;
+import javax.swing.JTextField;
+
+//说明：如果一个类，需要有界面的显示，那么这个类就需要继承JFrame，此时，该类可以被成为一个窗体类
+/*步骤：
+     1.定义JFrame窗体中的组件
+     2.在构造方法中初始化窗口的组件
+     3.使用网络编程完成数据的链接(TPC,UDP  协议)
+     4.实现"发送”按钮的监听点击事件
+     5.实现“回车键”发送数据
+ */
+public class ServerChatMain extends JFrame implements ActionListener, KeyListener
+{
+    public static void main(String[] args)
+    {
+
+        // 调用构造方法
+        new ServerChatMain();
+    }
+
+    // 属性
+    // 文本域
+    private JTextArea jta;
+    // 滚动条
+    private JScrollPane jsp;
+    // 面板
+    private JPanel jp;
+    // 文本框
+    private JTextField jtf;
+    // 按钮
+    private JButton jb;
+    // 输出流(成员变量)
+    private BufferedWriter bw = null;
+    // 服务端的端口号
+    // private static int serverPort;
+
+    // 使用static静态方法读取外部京台文件
+    // static代码块特点：1.在类加载的时候自动执行
+    // 特点2：一个类会被加载一次，因此静态代码块在程序中仅会被执行一次
+
+    /*static{
+        Properties prop = new Properties();
+        try {
+            //加载
+            prop.load(new FileReader("chat.properties"));
+            //给属性赋值
+            Integer.parseInt(prop.getProperty("serverPort"));
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+    }*/
+    // 构造方法
+    public ServerChatMain()
+    {
+        // 初始化组件
+        jta = new JTextArea();
+        // 设置文本域默认不可编辑
+        jta.setEditable(false);
+        // 注意：需要将文本域添加到滚动条中，实现滚动效果
+        jsp = new JScrollPane(jta);
+        // 初始化面板
+        jp = new JPanel();
+        jtf = new JTextField(10);
+        jb = new JButton("发送");
+        // 注意：需要将文本框与按钮添加到面板中
+        jp.add(jtf);
+        jp.add(jb);
+
+        // 注意：需要将滚动条与面板全部添加到窗体中,继承了窗体的属性，这里this就是窗体
+        this.add(jsp, BorderLayout.CENTER);// BorderLayout--边框布局
+        this.add(jp, BorderLayout.SOUTH);
+
+        // 注意：需要设置”标题“，大小，位置，关闭，是否可见
+        this.setTitle("QQ聊天服务端");
+        this.setSize(400, 300);
+        this.setLocation(700, 300);
+        this.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);// 窗体关闭，程序就退出
+        this.setVisible(true);// 设置窗体可见
+
+        /**************** TCP 服务端 Start *********************/
+        // 给发送按钮绑定一个监听点击事件
+        jb.addActionListener(this);
+        // 给文本框绑定一个键盘点击事件
+        jtf.addKeyListener(this);
+
+        try
+        {
+            // 1.创建一个服务端的套接字
+            ServerSocket serverSocket = new ServerSocket(8888);
+
+            // 2.等待客户端连接
+            Socket socket = serverSocket.accept();
+
+            // 3.获取socket通道的输入流(输入六是实现读取数据的，一行一行读取)BufferedReader->readLine();
+            // InputStream in = socket.getInputStream();
+            BufferedReader br = new BufferedReader(new InputStreamReader(socket.getInputStream()));
+            // 4.获取socket 通道的输出流(输出流实现写出数据，也是写一行换一行，刷新)BufferedWriter->newLine();
+            // 当用户点击发送按钮的时候写出数据
+            bw = new BufferedWriter(new OutputStreamWriter(socket.getOutputStream()));
+
+            // 循环读取数据并拼接到文本域
+            String line = null;
+            while ((line = br.readLine()) != null)
+            {
+                // 将读取的数据拼接到文本域中显示
+                jta.append(line + System.lineSeparator());
+            }
+
+            // 5.关闭socket 通道
+            serverSocket.close();
+
+        }
+        catch (IOException e)
+        {
+            e.printStackTrace();
+        }
+
+        /**************** TCP 服务端 end *********************/
+    }
+
+    @Override
+    public void actionPerformed(ActionEvent actionEvent)
+    {
+        // System.out.println("发送按钮被点击了");
+        sendDataToSocket();
+    }
+
+    // 行为
+    @Override
+    public void keyPressed(KeyEvent e)
+    {
+
+        // 回车键
+        // System.out.println(e);
+        // 发送数据到socket 同道中
+        if (e.getKeyCode() == KeyEvent.VK_ENTER)
+        {
+            sendDataToSocket();
+        }
+    }
+
+    // 定义一个方法，实现将数据发送到socket通道中
+    private void sendDataToSocket()
+    {
+        // 1.获取文本框中发送的内容
+        String text = jtf.getText();
+        // 2.拼接需要发送的数据内容
+        text = "服务端对客户端说：" + text;
+        // 3.自己也要显示
+        jta.append(text + System.lineSeparator());
+        // 4.发送
+        try
+        {
+            bw.write(text);
+            bw.newLine();// 换行刷新
+            bw.flush();
+            // 5.清空文本框内容
+            jtf.setText("");
+        }
+        catch (IOException e)
+        {
+            e.printStackTrace();
+        }
+
+    }
+
+    @Override
+    public void keyTyped(KeyEvent keyEvent)
+    {
+
+    }
+
+    @Override
+    public void keyReleased(KeyEvent keyEvent)
+    {
+
+    }
+
+}
