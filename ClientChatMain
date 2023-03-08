@@ -1,0 +1,188 @@
+import java.awt.BorderLayout;
+import java.awt.event.ActionEvent;
+import java.awt.event.ActionListener;
+import java.awt.event.KeyEvent;
+import java.awt.event.KeyListener;
+import java.io.BufferedReader;
+import java.io.BufferedWriter;
+import java.io.IOException;
+import java.io.InputStreamReader;
+import java.io.OutputStreamWriter;
+import java.net.Socket;
+
+import javax.swing.JButton;
+import javax.swing.JFrame;
+import javax.swing.JPanel;
+import javax.swing.JScrollPane;
+import javax.swing.JTextArea;
+import javax.swing.JTextField;
+
+//说明：如果一个类，需要有界面的显示，那么这个类就需要继承JFrame，此时，该类可以被成为一个窗体类
+/*步骤：
+     1.定义JFrame窗体中的组件
+     2.在构造方法中初始化窗口的组件
+ */
+
+public class ClientChatMain extends JFrame implements ActionListener, KeyListener
+{
+    public static void main(String[] args)
+    {
+
+        // 调用构造方法
+        new ClientChatMain();
+    }
+
+    // 属性
+    // 文本域
+    private JTextArea jta;
+    // 滚动条
+    private JScrollPane jsp;
+    // 面板
+    private JPanel jp;
+    // 文本框
+    private JTextField jtf;
+    // 按钮
+    private JButton jb;
+    // s输出流
+    private BufferedWriter bw = null;
+    // 客户端的IP地址
+    // private static String clientIp;
+    // 客户端的port端口号
+
+    // private static int clientPort;
+
+    // 静态代码块加载外部配置文件
+    /* static{
+      Properties prop = new Properties();
+        try {
+            prop.load(new FileReader("chat.properties"));
+            clientIp = prop.getProperty("clientIp");
+            clientPort =Integer.parseInt( prop.getProperty("clientPort"));
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+    }*/
+    // 构造方法
+    public ClientChatMain()
+    {
+        // 初始化组件
+        jta = new JTextArea();
+        // 设置文本域默认不可编辑
+        jta.setEditable(false);
+        // 注意：需要将文本域添加到滚动条中，实现滚动效果
+        jsp = new JScrollPane(jta);
+        // 初始化面板
+        jp = new JPanel();
+        jtf = new JTextField(10);
+        jb = new JButton("发送");
+        // 注意：需要将文本框与按钮添加到面板中
+        jp.add(jtf);
+        jp.add(jb);
+
+        // 注意：需要将滚动条与面板全部添加到窗体中,继承了窗体的属性，这里this就是窗体
+        this.add(jsp, BorderLayout.CENTER);// BorderLayout--边框布局
+        this.add(jp, BorderLayout.SOUTH);
+
+        // 注意：需要设置”标题“，大小，位置，关闭，是否可见
+        this.setTitle("QQ聊天客户端");
+        this.setSize(400, 300);
+        this.setLocation(700, 300);
+        this.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);// 窗体关闭，程序就退出
+        this.setVisible(true);// 设置窗体可见
+
+        /**************** TCP 客户端 Start *********************/
+
+        // 给发送按钮绑定一个监听点击事件
+        jb.addActionListener(this);
+        // 给文本框绑定一个键盘键
+        jtf.addKeyListener(this);
+        try
+        {
+            // 1.创建一个客户端的套接字(尝试连接）
+
+            Socket socket = new Socket("127.0.0.1", 8888);
+
+            // 2.获取socket通道的输入流
+            BufferedReader br = new BufferedReader(new InputStreamReader(socket.getInputStream()));
+            // 3.获取socket 通道的输出流
+            bw = new BufferedWriter(new OutputStreamWriter(socket.getOutputStream()));
+            // 循环读取数据，并拼接到文本域
+            String line = null;
+            while ((line = br.readLine()) != null)
+            {
+                jta.append(line + System.lineSeparator());
+            }
+
+            // 4.关闭socket 通道
+            socket.close();
+        }
+        catch (Exception e)
+        {
+            e.printStackTrace();
+        }
+
+        /**************** TCP 客户端 end *********************/
+    }
+
+    @Override
+    public void actionPerformed(ActionEvent e)
+    {
+        sendDataToSocket();
+    }
+
+    // 行为
+    @Override
+    public void keyPressed(KeyEvent e)
+    {
+        // 回车键
+        if (e.getKeyCode() == KeyEvent.VK_ENTER)
+        {
+            // 发送数据
+            sendDataToSocket();
+        }
+
+    }
+
+    private void sendDataToSocket()
+    {
+        // 1.获取文本框需要发送内容
+        String text = jtf.getText();
+
+        // 2.拼接内容
+
+        text = "客户端对服务端说" + text;
+
+        // 3.自己显示
+        jta.append(text + System.lineSeparator());
+
+        try
+        {
+            // 4.发送
+            bw.write(text);
+            bw.newLine();// 换行加刷新
+            bw.flush();
+
+            bw.write(text);
+            // 5.清空
+            jtf.setText("");
+        }
+        catch (IOException e)
+        {
+            e.printStackTrace();
+        }
+
+    }
+
+    @Override
+    public void keyTyped(KeyEvent e)
+    {
+
+    }
+
+    @Override
+    public void keyReleased(KeyEvent e)
+    {
+
+    }
+
+}
